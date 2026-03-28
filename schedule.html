@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Редактор расписания</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #1a1a2e;
+      color: #fff;
+      padding: 20px;
+      min-height: 100vh;
+    }
+    h1 { font-size: 20px; margin-bottom: 20px; text-align: center; }
+    .form {
+      background: #16213e;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+    input {
+      width: 100%;
+      background: #0f3460;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: #fff;
+      font-size: 15px;
+      margin-bottom: 10px;
+    }
+    input::placeholder { opacity: 0.5; }
+    button {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-add { background: #ff4444; color: white; margin-bottom: 10px; }
+    .btn-save { background: #4CAF50; color: white; }
+    .item {
+      background: #16213e;
+      border-radius: 10px;
+      padding: 12px 16px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .item-info { flex: 1; }
+    .item-time { font-weight: 700; color: #ff4444; }
+    .item-title { font-size: 14px; margin-top: 2px; }
+    .item-desc { font-size: 12px; opacity: 0.6; margin-top: 2px; }
+    .btn-del {
+      background: none;
+      border: none;
+      color: #ff4444;
+      font-size: 20px;
+      cursor: pointer;
+      width: auto;
+      padding: 0;
+    }
+    .status {
+      text-align: center;
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      display: none;
+    }
+    .status.ok { background: #4CAF50; }
+    .status.err { background: #ff4444; }
+    .hint {
+      font-size: 12px;
+      opacity: 0.5;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+  <h1>📋 Расписание эфира</h1>
+  <div class="status" id="status"></div>
+
+  <div class="form">
+    <input type="time" id="time" />
+    <input type="text" id="title" placeholder="Название передачи" />
+    <input type="text" id="desc" placeholder="Описание (необязательно)" />
+    <button class="btn-add" onclick="addItem()">+ Добавить</button>
+  </div>
+
+  <div id="list"></div>
+
+  <div class="hint">После добавления всех передач нажми «Сохранить»</div>
+  <button class="btn-save" onclick="save()">💾 Сохранить расписание</button>
+
+  <script>
+    let schedule = [];
+
+    function render() {
+      const list = document.getElementById('list');
+      if (!schedule.length) {
+        list.innerHTML = '<div style="text-align:center;opacity:0.4;margin:20px 0">Список пуст</div>';
+        return;
+      }
+      list.innerHTML = schedule.map((item, i) => `
+        <div class="item">
+          <div class="item-info">
+            <div class="item-time">${item.time}</div>
+            <div class="item-title">${item.title}</div>
+            ${item.desc ? `<div class="item-desc">${item.desc}</div>` : ''}
+          </div>
+          <button class="btn-del" onclick="remove(${i})">✕</button>
+        </div>
+      `).join('');
+    }
+
+    function addItem() {
+      const time = document.getElementById('time').value;
+      const title = document.getElementById('title').value.trim();
+      const desc = document.getElementById('desc').value.trim();
+
+      if (!time || !title) {
+        alert('Укажи время и название!');
+        return;
+      }
+
+      schedule.push({ time, title, desc });
+      schedule.sort((a, b) => a.time.localeCompare(b.time));
+
+      document.getElementById('title').value = '';
+      document.getElementById('desc').value = '';
+      render();
+    }
+
+    function remove(i) {
+      schedule.splice(i, 1);
+      render();
+    }
+
+    function save() {
+      const json = JSON.stringify(schedule, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'data.json';
+      a.click();
+
+      const status = document.getElementById('status');
+      status.textContent = '✅ Файл скачан! Загрузи data.json на GitHub';
+      status.className = 'status ok';
+      status.style.display = 'block';
+    }
+
+    render();
+  </script>
+</body>
+</html>
