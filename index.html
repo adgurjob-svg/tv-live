@@ -12,9 +12,17 @@
 </head>
 <body>
   <iframe id="player" allowfullscreen allow="autoplay; encrypted-media"></iframe>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script>
-    const params = new URLSearchParams(window.location.search);
-    const youtubeUrl = params.get('url');
+    const tg = window.Telegram.WebApp;
+    tg.ready();
+
+    // Получаем параметр из startapp
+    const startParam = tg.initDataUnsafe?.start_param || '';
+    
+    // Декодируем YouTube ссылку
+    const youtubeUrl = decodeURIComponent(startParam);
+    
     if (youtubeUrl) {
       const match = youtubeUrl.match(/(?:live\/|v=)([a-zA-Z0-9_-]+)/);
       if (match) {
