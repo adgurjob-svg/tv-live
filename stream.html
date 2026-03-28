@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Управление эфиром</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #1a1a2e;
+      color: #fff;
+      padding: 20px;
+      min-height: 100vh;
+    }
+    h1 { font-size: 20px; margin-bottom: 20px; text-align: center; }
+    .form {
+      background: #16213e;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+    label { font-size: 13px; opacity: 0.6; margin-bottom: 6px; display: block; }
+    input {
+      width: 100%;
+      background: #0f3460;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: #fff;
+      font-size: 15px;
+      margin-bottom: 14px;
+    }
+    input::placeholder { opacity: 0.5; }
+    button {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      background: #ff4444;
+      color: white;
+    }
+    .status {
+      text-align: center;
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      display: none;
+    }
+    .status.ok { background: #4CAF50; }
+    .status.err { background: #ff4444; }
+    .current {
+      background: #16213e;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 20px;
+      font-size: 13px;
+    }
+    .current-label { opacity: 0.6; margin-bottom: 6px; }
+    .current-url { color: #ff4444; word-break: break-all; font-size: 13px; }
+    .btn-stop {
+      background: #333;
+      color: #ff4444;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔴 Управление эфиром</h1>
+  <div class="status" id="status"></div>
+
+  <div class="current">
+    <div class="current-label">Текущая ссылка на эфир:</div>
+    <div class="current-url" id="current-url">Загрузка...</div>
+  </div>
+
+  <div class="form">
+    <label>Ссылка на YouTube эфир</label>
+    <input type="text" id="url" placeholder="https://youtube.com/live/XXXX" />
+    <label>Название эфира</label>
+    <input type="text" id="title" placeholder="Название передачи" />
+    <button onclick="save()">🔴 Запустить эфир</button>
+    <button class="btn-stop" onclick="stop()">⏹ Остановить эфир</button>
+  </div>
+
+  <script>
+    const BIN_ID = "69c813a3ed015c742bc5d6d2";
+    const API_KEY = "$2a$10$9x7PNq9qagGerlxyZZ8pMeGMoBn94obeRi87pQFcppRjgFfy989Vq";
+    const STREAM_KEY = "stream";
+
+    // Загружаем текущий эфир — используем отдельный bin
+    fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+      headers: { "X-Master-Key": API_KEY }
+    })
+    .then(r => r.json())
+    .then(data => {
+      const url = data.record?.stream_url || 'Эфир не идёт';
+      document.getElementById('current-url').textContent = url;
+      if (data.record?.stream_url) {
+        document.getElementById('url').value = data.record.stream_url;
+      }
+      if (data.record?.stream_title) {
+        document.getElementById('title').value = data.record.stream_title;
+      }
+    });
+
+    async function save() {
+      const url = document.getElementById('url').value.trim();
+      const title = document.getElementById('title').value.trim();
+      const status = document.getElementById('status');
+
+      if (!url) { alert('Введи ссылку!'); return; }
+
+      status.textContent = 'Сохраняю...';
+      status.className = 'status ok';
+      status.style.display = 'block';
+
+      try {
+        const r = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+          headers: { "X-Master-Key": API_KEY }
+        });
+        const data = await r.json();
+        const current = data.record || {};
+
+        await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Master-Key': API_KEY
+          },
+          body: JSON.stringify({ ...current, stream_url: url, stream_title: title })
+        });
+
+        document.getElementById('current-url').textContent = url;
+        status.textContent = '✅ Эфир обновлён!';
+      } catch {
+        status.textContent = '❌ Ошибка';
+        status.className = 'status err';
+      }
+    }
+
+    async function stop() {
+      const status = document.getElementById('status');
+      status.textContent = 'Останавливаю...';
+      status.className = 'status ok';
+      status.style.display = 'block';
+
+      try {
+        const r = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+          headers: { "X-Master-Key": API_KEY }
+        });
+        const data = await r.json();
+        const current = data.record || {};
+
+        await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Master-Key': API_KEY
+          },
+          body: JSON.stringify({ ...current, stream_url: null, stream_title: null })
+        });
+
+        document.getElementById('current-url').textContent = 'Эфир не идёт';
+        document.getElementById('url').value = '';
+        document.getElementById('title').value = '';
+        status.textContent = '⏹ Эфир остановлен';
+      } catch {
+        status.textContent = '❌ Ошибка';
+        status.className = 'status err';
+      }
+    }
+  </script>
+</body>
+</html>
