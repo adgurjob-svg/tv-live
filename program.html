@@ -3,83 +3,43 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Сегодня в эфире</title>
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <title>Расписание</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--tg-theme-bg-color, #1a1a2e); color: var(--tg-theme-text-color, #ffffff); padding: 16px; min-height: 100vh; }
-    h1 { font-size: 20px; font-weight: 700; margin-bottom: 6px; text-align: center; }
-    .date { text-align: center; font-size: 14px; opacity: 0.6; margin-bottom: 20px; }
-    .item { background: var(--tg-theme-secondary-bg-color, #16213e); border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; display: flex; align-items: center; gap: 14px; }
-    .item.active { border: 1px solid #ff4444; }
-    .time { font-size: 15px; font-weight: 700; color: #ff4444; min-width: 50px; }
-    .info { flex: 1; }
-    .title { font-size: 15px; font-weight: 600; }
-    .desc { font-size: 13px; opacity: 0.6; margin-top: 3px; }
-    .live-badge { background: #ff4444; color: white; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 20px; }
-    .empty { text-align: center; opacity: 0.5; margin-top: 60px; font-size: 15px; }
+    body { font-family: sans-serif; background: #1a1a2e; color: #fff; padding: 15px; }
+    .item { background: #16213e; border-radius: 10px; padding: 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 15px; border: 1px solid transparent; }
+    .item.active { border-color: #ff4444; background: #1f2d52; }
+    .time { color: #ff4444; font-weight: bold; min-width: 50px; }
+    .live { background: #ff4444; font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: auto; }
   </style>
 </head>
 <body>
-  <h1>📺 Сегодня в эфире</h1>
-  <div class="date" id="date"></div>
-  <div id="list"><div class="empty">Загрузка...</div></div>
+  <h2 style="text-align:center; margin-bottom:15px;">📅 Расписание на сегодня</h2>
+  <div id="list"></div>
 
   <script>
-    const tg = window.Telegram.WebApp;
-    tg.ready();
-    tg.expand();
-
     const BIN_ID = "69c813a3ed015c742bc5d6d2";
     const API_KEY = "$2a$10$9x7PNq9qagGerlxyZZ8pMeGMoBn94obeRi87pQFcppRjgFfy989Vq";
 
-    const now = new Date();
-    document.getElementById('date').textContent = now.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
-
     fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, { headers: { "X-Master-Key": API_KEY } })
-      .then(r => r.json())
-      .then(data => {
-        let schedule = [];
-        if (Array.isArray(data.record)) {
-            schedule = data.record;
-        } else {
-            schedule = data.record?.schedule || [];
-        }
+      .then(r => r.json()).then(data => {
+        const schedule = data.record?.schedule || [];
+        const now = new Date();
+        const currentMin = now.getHours() * 60 + now.getMinutes();
+        let activeIdx = -1;
 
-        const list = document.getElementById('list');
-        if (!schedule.length) {
-          list.innerHTML = '<div class="empty">Расписание на сегодня не добавлено</div>';
-          return;
-        }
+        schedule.sort((a,b) => a.time.localeCompare(b.time)).forEach((item, i) => {
+            const [h, m] = item.time.split(':').map(Number);
+            if (h * 60 + m <= currentMin) activeIdx = i;
+        });
 
-        // Логика определения текущей передачи
-        schedule.sort((a, b) => a.time.localeCompare(b.time));
-        const currentMinutes = now.getHours() * 60 + now.getMinutes();
-        let activeIndex = -1;
-        
-        for (let i = 0; i < schedule.length; i++) {
-            const [h, m] = schedule[i].time.split(':').map(Number);
-            if (h * 60 + m <= currentMinutes) {
-                activeIndex = i; // Находит последнюю передачу, которая уже началась
-            }
-        }
-
-        list.innerHTML = schedule.map((item, i) => {
-          const isActive = i === activeIndex;
-          return `
-            <div class="item ${isActive ? 'active' : ''}">
-              <div class="time">${item.time}</div>
-              <div class="info">
-                <div class="title">${item.title}</div>
-                ${item.desc ? `<div class="desc">${item.desc}</div>` : ''}
-              </div>
-              ${isActive ? '<span class="live-badge">🔴 LIVE</span>' : ''}
+        document.getElementById('list').innerHTML = schedule.map((item, i) => `
+            <div class="item ${i === activeIdx ? 'active' : ''}">
+                <div class="time">${item.time}</div>
+                <div><b>${item.title}</b><br><small style="opacity:0.6">${item.desc || ''}</small></div>
+                ${i === activeIdx ? '<div class="live">В ЭФИРЕ</div>' : ''}
             </div>
-          `;
-        }).join('');
-      })
-      .catch(() => {
-        document.getElementById('list').innerHTML = '<div class="empty">Не удалось загрузить расписание</div>';
+        `).join('');
       });
   </script>
 </body>
