@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Прямой эфир</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #000; width: 100vw; height: 100vh; overflow: hidden; }
+    iframe { width: 100%; height: 100%; border: none; }
+  </style>
+</head>
+<body>
+  <iframe id="player" allowfullscreen allow="autoplay; encrypted-media"></iframe>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const youtubeUrl = params.get('url');
+    if (youtubeUrl) {
+      const match = youtubeUrl.match(/(?:live\/|v=)([a-zA-Z0-9_-]+)/);
+      if (match) {
+        document.getElementById('player').src =
+          `https://www.youtube.com/embed/${match[1]}?autoplay=1`;
+      }
+    }
+  </script>
+</body>
+</html>
