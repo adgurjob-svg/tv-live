@@ -6,71 +6,21 @@
   <title>Редактор расписания</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-      background: #1a1a2e;
-      color: #fff;
-      padding: 20px;
-      min-height: 100vh;
-    }
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #1a1a2e; color: #fff; padding: 20px; min-height: 100vh; }
     h1 { font-size: 20px; margin-bottom: 20px; text-align: center; }
-    .form {
-      background: #16213e;
-      border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 20px;
-    }
-    input {
-      width: 100%;
-      background: #0f3460;
-      border: none;
-      border-radius: 8px;
-      padding: 10px 14px;
-      color: #fff;
-      font-size: 15px;
-      margin-bottom: 10px;
-    }
+    .form { background: #16213e; border-radius: 12px; padding: 16px; margin-bottom: 20px; }
+    input { width: 100%; background: #0f3460; border: none; border-radius: 8px; padding: 10px 14px; color: #fff; font-size: 15px; margin-bottom: 10px; }
     input::placeholder { opacity: 0.5; }
-    button {
-      width: 100%;
-      padding: 12px;
-      border: none;
-      border-radius: 8px;
-      font-size: 15px;
-      font-weight: 600;
-      cursor: pointer;
-    }
+    button { width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; }
     .btn-add { background: #ff4444; color: white; margin-bottom: 10px; }
     .btn-save { background: #4CAF50; color: white; }
-    .item {
-      background: #16213e;
-      border-radius: 10px;
-      padding: 12px 16px;
-      margin-bottom: 8px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
+    .item { background: #16213e; border-radius: 10px; padding: 12px 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; }
     .item-info { flex: 1; }
     .item-time { font-weight: 700; color: #ff4444; }
     .item-title { font-size: 14px; margin-top: 2px; }
     .item-desc { font-size: 12px; opacity: 0.6; margin-top: 2px; }
-    .btn-del {
-      background: none;
-      border: none;
-      color: #ff4444;
-      font-size: 20px;
-      cursor: pointer;
-      width: auto;
-      padding: 0;
-    }
-    .status {
-      text-align: center;
-      padding: 10px;
-      border-radius: 8px;
-      margin-bottom: 16px;
-      display: none;
-    }
+    .btn-del { background: none; border: none; color: #ff4444; font-size: 20px; cursor: pointer; width: auto; padding: 0; }
+    .status { text-align: center; padding: 10px; border-radius: 8px; margin-bottom: 16px; display: none; }
     .status.ok { background: #4CAF50; }
     .status.err { background: #ff4444; }
   </style>
@@ -96,15 +46,18 @@
 
     let schedule = [];
 
-    // Загружаем текущее расписание
-    fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-      headers: { "X-Master-Key": API_KEY }
-    })
-    .then(r => r.json())
-    .then(data => {
-      schedule = data.record || [];
-      render();
-    });
+    // Загружаем расписание
+    fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, { headers: { "X-Master-Key": API_KEY } })
+      .then(r => r.json())
+      .then(data => {
+        // Защита от старой структуры данных
+        if (Array.isArray(data.record)) {
+            schedule = data.record;
+        } else {
+            schedule = data.record?.schedule || [];
+        }
+        render();
+      });
 
     function render() {
       const list = document.getElementById('list');
@@ -129,10 +82,7 @@
       const title = document.getElementById('title').value.trim();
       const desc = document.getElementById('desc').value.trim();
 
-      if (!time || !title) {
-        alert('Укажи время и название!');
-        return;
-      }
+      if (!time || !title) { alert('Укажи время и название!'); return; }
 
       schedule.push({ time, title, desc });
       schedule.sort((a, b) => a.time.localeCompare(b.time));
@@ -142,34 +92,30 @@
       render();
     }
 
-    function remove(i) {
-      schedule.splice(i, 1);
-      render();
-    }
+    function remove(i) { schedule.splice(i, 1); render(); }
 
     async function save() {
       const status = document.getElementById('status');
-      status.textContent = 'Сохраняю...';
-      status.className = 'status ok';
-      status.style.display = 'block';
+      status.textContent = 'Сохраняю...'; status.className = 'status ok'; status.style.display = 'block';
 
       try {
+        const r = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, { headers: { "X-Master-Key": API_KEY } });
+        const data = await r.json();
+        const current = data.record || {};
+        
+        // Склеиваем старые данные (ссылку на эфир) и новое расписание
+        const payload = Array.isArray(current) ? { schedule: schedule } : { ...current, schedule: schedule };
+
         await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
           method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Master-Key': API_KEY
-          },
-          body: JSON.stringify(schedule)
+          headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY },
+          body: JSON.stringify(payload)
         });
         status.textContent = '✅ Расписание сохранено!';
       } catch {
-        status.textContent = '❌ Ошибка сохранения';
-        status.className = 'status err';
+        status.textContent = '❌ Ошибка сохранения'; status.className = 'status err';
       }
     }
-
-    render();
   </script>
 </body>
 </html>
