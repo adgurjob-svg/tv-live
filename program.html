@@ -14,19 +14,8 @@
       padding: 16px;
       min-height: 100vh;
     }
-    h1 {
-      font-size: 20px;
-      font-weight: 700;
-      margin-bottom: 16px;
-      text-align: center;
-      color: var(--tg-theme-text-color, #fff);
-    }
-    .date {
-      text-align: center;
-      font-size: 14px;
-      opacity: 0.6;
-      margin-bottom: 20px;
-    }
+    h1 { font-size: 20px; font-weight: 700; margin-bottom: 6px; text-align: center; }
+    .date { text-align: center; font-size: 14px; opacity: 0.6; margin-bottom: 20px; }
     .item {
       background: var(--tg-theme-secondary-bg-color, #16213e);
       border-radius: 12px;
@@ -36,15 +25,8 @@
       align-items: center;
       gap: 14px;
     }
-    .item.active {
-      border: 1px solid #ff4444;
-    }
-    .time {
-      font-size: 15px;
-      font-weight: 700;
-      color: #ff4444;
-      min-width: 50px;
-    }
+    .item.active { border: 1px solid #ff4444; }
+    .time { font-size: 15px; font-weight: 700; color: #ff4444; min-width: 50px; }
     .info { flex: 1; }
     .title { font-size: 15px; font-weight: 600; }
     .desc { font-size: 13px; opacity: 0.6; margin-top: 3px; }
@@ -56,64 +38,60 @@
       padding: 3px 8px;
       border-radius: 20px;
     }
-    .empty {
-      text-align: center;
-      opacity: 0.5;
-      margin-top: 60px;
-      font-size: 15px;
-    }
+    .empty { text-align: center; opacity: 0.5; margin-top: 60px; font-size: 15px; }
   </style>
 </head>
 <body>
   <h1>📺 Сегодня в эфире</h1>
   <div class="date" id="date"></div>
-  <div id="list"></div>
+  <div id="list"><div class="empty">Загрузка...</div></div>
 
   <script>
     const tg = window.Telegram.WebApp;
     tg.ready();
     tg.expand();
 
-    // Дата
+    const BIN_ID = "69c813a3ed015c742bc5d6d2";
+    const API_KEY = "$2a$10$9x7PNq9qagGerlxyZZ8pMeGMoBn94obeRi87pQFcppRjgFfy989Vq";
+
     const now = new Date();
     document.getElementById('date').textContent = now.toLocaleDateString('ru-RU', {
       weekday: 'long', day: 'numeric', month: 'long'
     });
 
-    // Загружаем расписание
-    fetch('https://adgurjob-svg.github.io/tv-live/data.json?t=' + Date.now())
-      .then(r => r.json())
-      .then(data => {
-        const list = document.getElementById('list');
-        if (!data.length) {
-          list.innerHTML = '<div class="empty">Расписание на сегодня не добавлено</div>';
-          return;
-        }
+    fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+      headers: { "X-Master-Key": API_KEY }
+    })
+    .then(r => r.json())
+    .then(data => {
+      const schedule = data.record || [];
+      const list = document.getElementById('list');
 
-        const currentTime = now.getHours() * 60 + now.getMinutes();
+      if (!schedule.length) {
+        list.innerHTML = '<div class="empty">Расписание на сегодня не добавлено</div>';
+        return;
+      }
 
-        data.forEach(item => {
-          const [h, m] = item.time.split(':').map(Number);
-          const itemMinutes = h * 60 + m;
-          const isActive = Math.abs(itemMinutes - currentTime) < 60;
-
-          const div = document.createElement('div');
-          div.className = 'item' + (isActive ? ' active' : '');
-          div.innerHTML = `
+      const currentTime = now.getHours() * 60 + now.getMinutes();
+      list.innerHTML = schedule.map(item => {
+        const [h, m] = item.time.split(':').map(Number);
+        const isActive = Math.abs(h * 60 + m - currentTime) < 60;
+        return `
+          <div class="item ${isActive ? 'active' : ''}">
             <div class="time">${item.time}</div>
             <div class="info">
               <div class="title">${item.title}</div>
               ${item.desc ? `<div class="desc">${item.desc}</div>` : ''}
             </div>
             ${isActive ? '<span class="live-badge">🔴 LIVE</span>' : ''}
-          `;
-          list.appendChild(div);
-        });
-      })
-      .catch(() => {
-        document.getElementById('list').innerHTML =
-          '<div class="empty">Не удалось загрузить расписание</div>';
-      });
+          </div>
+        `;
+      }).join('');
+    })
+    .catch(() => {
+      document.getElementById('list').innerHTML =
+        '<div class="empty">Не удалось загрузить расписание</div>';
+    });
   </script>
 </body>
 </html>
