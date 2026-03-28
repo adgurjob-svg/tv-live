@@ -3,80 +3,31 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Турнирная таблица</title>
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <title>Таблица</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #1a1a2e; color: #fff; padding: 15px; }
-    h1 { font-size: 18px; text-align: center; margin-bottom: 15px; color: #ff4444; }
-    
-    .table-container { background: #16213e; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    th { background: #0f3460; padding: 12px 8px; text-align: left; font-size: 11px; text-transform: uppercase; opacity: 0.7; }
-    td { padding: 12px 8px; border-bottom: 1px solid rgba(255,255,255,0.05); }
-    tr:last-child td { border: none; }
-    
-    .pos { font-weight: bold; width: 30px; }
-    .team { font-weight: 600; }
-    .pts { font-weight: bold; color: #ff4444; text-align: center; }
-    .stats { opacity: 0.6; text-align: center; }
-
-    /* Стиль для живого обновления (заглушка, пока нет API) */
-    .refresh-info { text-align: center; font-size: 10px; opacity: 0.4; margin-top: 15px; }
+    body { font-family: sans-serif; background: #1a1a2e; color: #fff; padding: 10px; }
+    table { width: 100%; border-collapse: collapse; background: #16213e; border-radius: 10px; overflow: hidden; font-size: 13px; }
+    th { background: #0f3460; padding: 10px; text-align: left; color: #ff4444; }
+    td { padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .pts { font-weight: bold; color: #ff4444; }
   </style>
 </head>
 <body>
-  <h1>🏆 Таблица чемпионата</h1>
-  
-  <div class="table-container">
-    <table id="league-table">
-      <thead>
-        <tr>
-          <th class="pos">#</th>
-          <th>Команда</th>
-          <th class="stats">И</th>
-          <th class="stats">В/Н/П</th>
-          <th class="pts">О</th>
-        </tr>
-      </thead>
-      <tbody id="table-body">
-        <tr><td colspan="5" style="text-align:center; padding: 20px;">Загрузка данных...</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <div class="refresh-info">Данные синхронизированы с ff-ra.ru</div>
-
+  <h2 style="text-align:center; margin-bottom:10px;">🏆 Таблица Лиги</h2>
+  <table id="tbl">
+    <thead><tr><th>#</th><th>Команда</th><th>И</th><th>В/Н/П</th><th class="pts">О</th></tr></thead>
+    <tbody id="body"></tbody>
+  </table>
   <script>
-    const tg = window.Telegram.WebApp;
-    tg.ready();
-
-    // ВАЖНО: Так как прямой доступ к ff-ra.ru заблокирован браузером (CORS),
-    // нам нужно либо использовать прокси, либо вводить данные вручную через админку.
-    // Для теста я заполню таблицу данными, которые есть на сайте сейчас.
-
-    const mockData = [
-      { pos: 1, team: "Гагра", games: 5, win: 4, draw: 1, loss: 0, pts: 13 },
-      { pos: 2, team: "Рица", games: 5, win: 3, draw: 2, loss: 0, pts: 11 },
-      { pos: 3, team: "Нарт", games: 5, win: 3, draw: 1, loss: 1, pts: 10 },
-      { pos: 4, team: "Афон", games: 5, win: 2, draw: 0, loss: 3, pts: 6 },
-    ];
-
-    function renderTable(data) {
-      const tbody = document.getElementById('table-body');
-      tbody.innerHTML = data.map(item => `
-        <tr>
-          <td class="pos">${item.pos}</td>
-          <td class="team">${item.team}</td>
-          <td class="stats">${item.games}</td>
-          <td class="stats">${item.win}/${item.draw}/${item.loss}</td>
-          <td class="pts">${item.pts}</td>
-        </tr>
-      `).join('');
-    }
-
-    // Запускаем отрисовку
-    renderTable(mockData);
+    const BIN_ID = "69c813a3ed015c742bc5d6d2";
+    const API_KEY = "$2a$10$9x7PNq9qagGerlxyZZ8pMeGMoBn94obeRi87pQFcppRjgFfy989Vq";
+    fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, { headers: { "X-Master-Key": API_KEY } })
+      .then(r => r.json()).then(data => {
+        const table = data.record?.football_table || [];
+        document.getElementById('body').innerHTML = table.map(item => `
+            <tr><td>${item.pos}</td><td>${item.team}</td><td>${item.games}</td><td>${item.win_draw_loss}</td><td class="pts">${item.pts}</td></tr>
+        `).join('');
+      });
   </script>
 </body>
 </html>
