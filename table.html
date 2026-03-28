@@ -1,33 +1,166 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Таблица</title>
-  <style>
-    body { font-family: sans-serif; background: #1a1a2e; color: #fff; padding: 10px; }
-    table { width: 100%; border-collapse: collapse; background: #16213e; border-radius: 10px; overflow: hidden; font-size: 13px; }
-    th { background: #0f3460; padding: 10px; text-align: left; color: #ff4444; }
-    td { padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); }
-    .pts { font-weight: bold; color: #ff4444; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>APSNY SUPER LEAGUE - Таблица</title>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <style>
+        :root { --gold: #ffd700; --bg: #000000; --card: #1a1a1a; --text: #ffffff; }
+        body { font-family: 'Arial', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px; }
+        
+        .header { text-align: center; margin-bottom: 20px; }
+        .header h1 { color: var(--gold); text-transform: uppercase; font-size: 22px; margin: 0; letter-spacing: 1px; }
+
+        table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 10px; overflow: hidden; font-size: 14px; }
+        th { background: #333; color: var(--gold); padding: 12px 8px; text-align: left; text-transform: uppercase; font-size: 12px; }
+        td { padding: 12px 8px; border-bottom: 1px solid #2a2a2a; }
+        
+        /* Стили для режима редактирования */
+        .admin-only { display: none; }
+        .is-admin .admin-only { display: inline-block; }
+        .is-admin td input { background: #333; border: 1px solid #444; color: white; padding: 5px; width: 80%; border-radius: 4px; }
+        .is-admin .drag-handle { cursor: move; color: var(--gold); font-weight: bold; }
+
+        .controls { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+        .btn { padding: 10px 20px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; display: none; }
+        .is-admin .btn { display: block; }
+        .btn-save { background: #27ae60; color: white; width: 100%; max-width: 300px; }
+        .btn-add { background: #2980b9; color: white; }
+        
+        #status { text-align: center; font-size: 12px; margin-top: 10px; color: #888; }
+    </style>
 </head>
-<body>
-  <h2 style="text-align:center; margin-bottom:10px;">🏆 Таблица Лиги</h2>
-  <table id="tbl">
-    <thead><tr><th>#</th><th>Команда</th><th>И</th><th>В/Н/П</th><th class="pts">О</th></tr></thead>
-    <tbody id="body"></tbody>
-  </table>
-  <script>
+<body id="main-body">
+
+<div class="header">
+    <h1>Apsny Super League</h1>
+</div>
+
+<table id="league-table">
+    <thead>
+        <tr>
+            <th style="width: 30px;">#</th>
+            <th>Команда</th>
+            <th style="width: 30px;">И</th>
+            <th style="width: 60px;">В/Н/П</th>
+            <th style="width: 30px;">О</th>
+            <th class="admin-only">Уд.</th>
+        </tr>
+    </thead>
+    <tbody id="table-body">
+        </tbody>
+</table>
+
+<div class="controls">
+    <button class="btn btn-add" onclick="addRow()">+ Добавить команду</button>
+    <button class="btn btn-save" onclick="saveData()">💾 Сохранить изменения</button>
+    <div id="status">Загрузка данных...</div>
+</div>
+
+<script>
     const BIN_ID = "69c813a3ed015c742bc5d6d2";
     const API_KEY = "$2a$10$9x7PNq9qagGerlxyZZ8pMeGMoBn94obeRi87pQFcppRjgFfy989Vq";
-    fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, { headers: { "X-Master-Key": API_KEY } })
-      .then(r => r.json()).then(data => {
-        const table = data.record?.football_table || [];
-        document.getElementById('body').innerHTML = table.map(item => `
-            <tr><td>${item.pos}</td><td>${item.team}</td><td>${item.games}</td><td>${item.win_draw_loss}</td><td class="pts">${item.pts}</td></tr>
-        `).join('');
-      });
-  </script>
+    
+    // Проверка: админ ли зашел? (ищем ?admin=true в ссылке)
+    const urlParams = new URLSearchParams(window.location.search);
+    const isAdmin = urlParams.get('admin') === 'true';
+    if (isAdmin) document.getElementById('main-body').classList.add('is-admin');
+
+    async function loadData() {
+        try {
+            const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+                headers: { "X-Master-Key": API_KEY }
+            });
+            const data = await res.json();
+            const teams = data.record.football_table || [];
+            
+            const body = document.getElementById('table-body');
+            body.innerHTML = '';
+            
+            teams.forEach(team => addRow(team));
+            document.getElementById('status').innerText = isAdmin ? "Режим редактирования" : "Обновлено только что";
+        } catch (e) {
+            document.getElementById('status').innerText = "Ошибка загрузки";
+        }
+    }
+
+    function addRow(data = { pos: '?', team: 'Новая команда', games: '0', win_draw_loss: '0/0/0', pts: '0' }) {
+        const body = document.getElementById('table-body');
+        const tr = document.createElement('tr');
+        
+        if (isAdmin) {
+            tr.innerHTML = `
+                <td class="drag-handle">${data.pos}</td>
+                <td><input type="text" class="in-team" value="${data.team}"></td>
+                <td><input type="text" class="in-games" style="width:30px" value="${data.games}"></td>
+                <td><input type="text" class="in-stat" style="width:60px" value="${data.win_draw_loss}"></td>
+                <td><input type="text" class="in-pts" style="width:30px" value="${data.pts}"></td>
+                <td class="admin-only"><button onclick="this.parentElement.parentElement.remove()" style="background:none; border:none; color:red;">✕</button></td>
+            `;
+        } else {
+            tr.innerHTML = `
+                <td style="color:gold; font-weight:bold;">${data.pos}</td>
+                <td style="font-weight:bold;">${data.team}</td>
+                <td>${data.games}</td>
+                <td style="color:#aaa; font-size:12px;">${data.win_draw_loss}</td>
+                <td style="color:gold; font-weight:bold;">${data.pts}</td>
+                <td class="admin-only"></td>
+            `;
+        }
+        body.appendChild(tr);
+        if (isAdmin) reindex();
+    }
+
+    function reindex() {
+        document.querySelectorAll('#table-body tr').forEach((tr, i) => {
+            tr.querySelector('.drag-handle').innerText = i + 1;
+        });
+    }
+
+    if (isAdmin) {
+        new Sortable(document.getElementById('table-body'), {
+            animation: 150,
+            handle: '.drag-handle',
+            onEnd: reindex
+        });
+    }
+
+    async function saveData() {
+        document.getElementById('status').innerText = "Сохранение...";
+        const rows = document.querySelectorAll('#table-body tr');
+        const updatedTable = [];
+
+        rows.forEach((tr, i) => {
+            updatedTable.push({
+                pos: (i + 1).toString(),
+                team: tr.querySelector('.in-team').value,
+                games: tr.querySelector('.in-games').value,
+                win_draw_loss: tr.querySelector('.in-stat').value,
+                pts: tr.querySelector('.in-pts').value
+            });
+        });
+
+        try {
+            const currRes = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+                headers: { "X-Master-Key": API_KEY }
+            });
+            const fullData = await currRes.json();
+            fullData.record.football_table = updatedTable;
+
+            const saveRes = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+                method: 'PUT',
+                headers: { "X-Master-Key": API_KEY, "Content-Type": "application/json" },
+                body: JSON.stringify(fullData.record)
+            });
+
+            if (saveRes.ok) document.getElementById('status').innerText = "✅ СОХРАНЕНО!";
+            else document.getElementById('status').innerText = "❌ Ошибка сохранения";
+        } catch (e) { document.getElementById('status').innerText = "Ошибка сети"; }
+    }
+
+    loadData();
+</script>
+
 </body>
 </html>
