@@ -29,29 +29,54 @@
     const BIN_ID = "69c813a3ed015c742bc5d6d2";
     const API_KEY = "$2a$10$9x7PNq9qagGerlxyZZ8pMeGMoBn94obeRi87pQFcppRjgFfy989Vq";
 
-    fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-      headers: { "X-Master-Key": API_KEY }
-    })
-    .then(r => r.json())
-    .then(data => {
-      const url = data.record?.stream_url;
-      if (url) {
-        const match = url.match(/(?:live\/|v=)([a-zA-Z0-9_-]+)/);
-        if (match) {
+    fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, { headers: { "X-Master-Key": API_KEY } })
+      .then(r => r.json())
+      .then(data => {
+        const url = data.record?.stream_url;
+        if (url) {
           document.getElementById('play-btn').style.display = 'block';
           document.getElementById('play-btn').onclick = () => {
             document.getElementById('overlay').style.display = 'none';
-            document.getElementById('player').src =
-              `https://www.youtube.com/embed/${match[1]}?autoplay=1&playsinline=1`;
+            
+            let finalSrc = "";
+            
+            // Проверка на YouTube
+            if (url.includes('youtube.com') || url.includes('youtu.be')) {
+                const match = url.match(/(?:live\/|v=|\/)([a-zA-Z0-9_-]{11})/);
+                if (match) {
+                    finalSrc = `https://www.youtube.com/embed/${match[1]}?autoplay=1&playsinline=1`;
+                }
+            } 
+            // Проверка на ВКонтакте
+            else if (url.includes('vk.com') || url.includes('vkvideo.ru')) {
+                if (url.includes('video_ext.php')) {
+                    finalSrc = url + (url.includes('?') ? '&' : '?') + 'autoplay=1';
+                } else {
+                    const vkMatch = url.match(/video(-?\d+)_(\d+)/);
+                    if (vkMatch) {
+                        finalSrc = `https://vk.com/video_ext.php?oid=${vkMatch[1]}&id=${vkMatch[2]}&autoplay=1`;
+                    } else {
+                        finalSrc = url; 
+                    }
+                }
+            } else {
+                finalSrc = url; // Для остальных iframe ссылок
+            }
+
+            if(finalSrc) {
+                document.getElementById('player').src = finalSrc;
+            } else {
+                document.getElementById('no-stream').style.display = 'block';
+                document.getElementById('no-stream').textContent = 'Неподдерживаемая ссылка';
+            }
           };
+        } else {
+          document.getElementById('no-stream').style.display = 'block';
         }
-      } else {
+      })
+      .catch(() => {
         document.getElementById('no-stream').style.display = 'block';
-      }
-    })
-    .catch(() => {
-      document.getElementById('no-stream').style.display = 'block';
-    });
+      });
   </script>
 </body>
 </html>
