@@ -73,12 +73,6 @@
     }
     .status.ok { background: #4CAF50; }
     .status.err { background: #ff4444; }
-    .hint {
-      font-size: 12px;
-      opacity: 0.5;
-      text-align: center;
-      margin-bottom: 16px;
-    }
   </style>
 </head>
 <body>
@@ -93,12 +87,24 @@
   </div>
 
   <div id="list"></div>
-
-  <div class="hint">После добавления всех передач нажми «Сохранить»</div>
+  <br>
   <button class="btn-save" onclick="save()">💾 Сохранить расписание</button>
 
   <script>
+    const BIN_ID = "69c813a3ed015c742bc5d6d2";
+    const API_KEY = "$2a$10$9x7PNq9qagGerlxyZZ8pMeGMoBn94obeRi87pQFcppRjgFfy989Vq";
+
     let schedule = [];
+
+    // Загружаем текущее расписание
+    fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+      headers: { "X-Master-Key": API_KEY }
+    })
+    .then(r => r.json())
+    .then(data => {
+      schedule = data.record || [];
+      render();
+    });
 
     function render() {
       const list = document.getElementById('list');
@@ -141,19 +147,26 @@
       render();
     }
 
-    function save() {
-      const json = JSON.stringify(schedule, null, 2);
-      const blob = new Blob([json], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'data.json';
-      a.click();
-
+    async function save() {
       const status = document.getElementById('status');
-      status.textContent = '✅ Файл скачан! Загрузи data.json на GitHub';
+      status.textContent = 'Сохраняю...';
       status.className = 'status ok';
       status.style.display = 'block';
+
+      try {
+        await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Master-Key': API_KEY
+          },
+          body: JSON.stringify(schedule)
+        });
+        status.textContent = '✅ Расписание сохранено!';
+      } catch {
+        status.textContent = '❌ Ошибка сохранения';
+        status.className = 'status err';
+      }
     }
 
     render();
